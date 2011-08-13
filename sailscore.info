@@ -1,0 +1,3 @@
+name = SailScore
+description = Scores sailing races and stores info on the sailors
+core = 6.x
