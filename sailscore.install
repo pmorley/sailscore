@@ -1,0 +1,196 @@
+<?php
+
+/**
+ * Simply runs all of the updates
+ */
+function sailscore_install() {
+  $ret = array();
+
+  sailscore_update_6001();
+
+  return $ret;
+}
+
+/**
+ * Creates the databases
+ */
+function sailscore_update_6001() {
+  $ret = array();
+
+// Create and populate starting values for tables
+
+  $boat_type_sql = "CREATE TABLE {sailscore_boat_types} (
+  `type_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `name` varchar(16) NOT NULL,
+  PRIMARY KEY (`type_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1";
+
+  db_query($boat_type_sql);
+
+  $sql = "INSERT INTO {sailscore_boat_types} (name) VALUES ('420')";
+  db_query($sql);
+  $sql = "INSERT INTO {sailscore_boat_types} (name) VALUES ('FJ')";
+  db_query($sql);
+
+  $boat_sql = "CREATE TABLE {sailscore_boat} (
+  `boat_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `skipper_id` int(10) unsigned DEFAULT NULL,
+  `crew_id` int(10) unsigned DEFAULT NULL,
+  `boat_type` int(10) unsigned DEFAULT NULL,
+  PRIMARY KEY (`boat_id`),
+  KEY `boat_type` (`boat_type`),
+  KEY `skipper_id` (`skipper_id`),
+  KEY `crew_id` (`crew_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1";
+
+  db_query($boat_sql);
+
+  $weather_sql = "CREATE TABLE {sailscore_weather} (
+  `weather_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `name` varchar(32) NOT NULL,
+  PRIMARY KEY (`weather_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1";
+
+  db_query($weather_sql);
+
+  $sql = "INSERT INTO {sailscore_weather} (name) VALUES ('Sunny')";
+  db_query($sql);
+  $sql = "INSERT INTO {sailscore_weather} (name) VALUES ('Cloudy')";
+  db_query($sql);
+  $sql = "INSERT INTO {sailscore_weather} (name) VALUES ('Raining')";
+  db_query($sql);
+  $sql = "INSERT INTO {sailscore_weather} (name) VALUES ('Snowing')";
+  db_query($sql);
+
+  $waves_sql = "CREATE TABLE {sailscore_waves} (
+  `wave_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `name` varchar(32) NOT NULL,
+  PRIMARY KEY (`wave_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1";
+
+  db_query($waves_sql);
+
+  $sql = "INSERT INTO {sailscore_waves} (name) VALUES ('Flat')";
+  db_query($sql);
+  $sql = "INSERT INTO {sailscore_waves} (name) VALUES ('Light Chop')";
+  db_query($sql);
+  $sql = "INSERT INTO {sailscore_waves} (name) VALUES ('Choppy')";
+  db_query($sql);
+  $sql = "INSERT INTO {sailscore_waves} (name) VALUES ('Rollers')";
+  db_query($sql);
+
+  $races_sql = "CREATE TABLE {sailscore_races} (
+  `race_id` int(11) unsigned NOT NULL AUTO_INCREMENT,
+  `position` int(11) unsigned NOT NULL,
+  `boat_id` int(11) unsigned DEFAULT NULL,
+  PRIMARY KEY (`race_id`),
+  KEY `boat_id` (`boat_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1";
+
+  db_query($races_sql);
+
+  $raceday_sql = "CREATE TABLE {sailscore_raceday} (
+  `raceday_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `date` date NOT NULL,
+  `weather` int(10) unsigned DEFAULT NULL,
+  `temperature` int(10) unsigned DEFAULT NULL,
+  `wind` int(10) unsigned DEFAULT NULL,
+  `waves` int(10) unsigned DEFAULT NULL,
+  PRIMARY KEY (`raceday_id`),
+  KEY `waves` (`waves`),
+  KEY `weather` (`weather`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1";
+
+  db_query($raceday_sql);
+
+  $raceday_races_sql = "CREATE TABLE {sailscore_raceday_races} (
+  `raceday_id` int(10) unsigned NOT NULL,
+  `race_id` int(10) unsigned NOT NULL,
+  PRIMARY KEY (`raceday_id`,`race_id`),
+  KEY `race_id` (`race_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1";
+
+  db_query($raceday_races_sql);
+
+// Make users table InnoDB so that we can reference it
+  $sql = "ALTER TABLE users engine=innodb";
+  db_query($sql);
+
+// Add foreign keys for tables
+
+  $boat_foreign = "ALTER TABLE {sailscore_boat}
+  ADD CONSTRAINT `sailscore_boat_ibfk_3` FOREIGN KEY (`boat_type`) REFERENCES `sailscore_boat_types` (`type_id`) ON DELETE SET NULL ON UPDATE CASCADE,
+  ADD CONSTRAINT `sailscore_boat_ibfk_2` FOREIGN KEY (`skipper_id`) REFERENCES `users` (`uid`) ON DELETE SET NULL ON UPDATE CASCADE,
+  ADD CONSTRAINT `sailscore_boat_ibfk_1` FOREIGN KEY (`crew_id`) REFERENCES `users` (`uid`) ON DELETE SET NULL ON UPDATE CASCADE";
+
+  db_query($boat_foreign);
+
+  $races_foreign = "ALTER TABLE {sailscore_races}
+  ADD CONSTRAINT `sailscore_races_ibfk_1` FOREIGN KEY (`boat_id`) REFERENCES `sailscore_boat` (`boat_id`) ON DELETE SET NULL ON UPDATE CASCADE";
+
+  db_query($races_foreign);
+
+  $raceday_foreign = "ALTER TABLE {sailscore_raceday}
+  ADD CONSTRAINT `sailscore_raceday_ibfk_2` FOREIGN KEY (`waves`) REFERENCES `sailscore_waves` (`wave_id`) ON DELETE SET NULL ON UPDATE CASCADE,
+  ADD CONSTRAINT `sailscore_raceday_ibfk_1` FOREIGN KEY (`weather`) REFERENCES `sailscore_weather` (`weather_id`) ON DELETE SET NULL ON UPDATE CASCADE";
+
+  db_query($raceday_foreign);
+
+  $raceday_races_foreign = "ALTER TABLE {sailscore_raceday_races}
+  ADD CONSTRAINT `sailscore_raceday_races_ibfk_2` FOREIGN KEY (`raceday_id`) REFERENCES `sailscore_raceday` (`raceday_id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  ADD CONSTRAINT `sailscore_raceday_races_ibfk_1` FOREIGN KEY (`race_id`) REFERENCES `sailscore_races` (`race_id`) ON DELETE CASCADE ON UPDATE CASCADE";
+
+  db_query($raceday_races_foreign);
+
+  return $ret;
+}
+
+/**
+ * Undoes update 6001
+ */
+function sailscore_undo_update_6001() {
+  $ret = array();
+
+  if (db_table_exists('sailscore_raceday_races')) {
+    $sql = "DROP TABLE {sailscore_raceday_races}";
+    db_query($sql);
+  }
+  if (db_table_exists('sailscore_raceday')) {
+    $sql = "DROP TABLE {sailscore_raceday}";
+    db_query($sql);
+  }
+  if (db_table_exists('sailscore_races')) {
+    $sql = "DROP TABLE {sailscore_races}";
+    db_query($sql);
+  }
+  if (db_table_exists('sailscore_boat')) {
+    $sql = "DROP TABLE {sailscore_boat}";
+    db_query($sql);
+  }
+  if (db_table_exists('sailscore_boat_types')) {
+    $sql = "DROP TABLE {sailscore_boat_types}";
+    db_query($sql);
+  }
+  if (db_table_exists('sailscore_weather')) {
+    $sql = "DROP TABLE {sailscore_weather}";
+    db_query($sql);
+  }
+  if (db_table_exists('sailscore_waves')) {
+    $sql = "DROP TABLE {sailscore_waves}";
+    db_query($sql);
+  }
+
+  return $ret;
+}
+
+/**
+ * Undoes all updates
+ */
+function sailscore_uninstall() {
+  $ret = array();
+
+  // Undo in reverse order.  Place new undoes directly under this comment
+  sailscore_undo_update_6001();
+
+  return $ret;
+}
